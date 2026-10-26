@@ -1,0 +1,12 @@
+# Force LF in the repository and in the working tree for all text files
+* text=auto eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.parquet binary
+*.pkl binary
