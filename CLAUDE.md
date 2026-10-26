@@ -8,10 +8,11 @@ Value Betting Agent (`vba`) is a football value betting system: it estimates mat
 
 Roadmap:
 
-1. Data: ingest and store matches and odds.
-2. Model: Dixon-Coles model + backtest.
-3. API + agent + MCP server.
-4. Dashboard (React/TypeScript).
+1. Project setup (tooling, CI, agent conventions): done.
+2. Data ingestion and storage (matches, xG, odds).
+3. Dixon-Coles model, value engine and backtest.
+4. API, Claude agent and MCP server.
+5. Dashboard (React/TypeScript).
 
 ## Commands
 
