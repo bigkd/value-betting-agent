@@ -1,0 +1,16 @@
+﻿[project]
+name = "value-betting-agent"
+version = "0.1.0"
+description = "Value betting system for football: Dixon-Coles model, odds, API and Claude agent."
+authors = [
+    { name = "Pedro", email = "pmp17cb@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.13.5,<0.14.0"]
+build-backend = "uv_build"
+
+[tool.uv.build-backend]
+module-name = "vba"
