@@ -1,4 +1,4 @@
-﻿[project]
+[project]
 name = "value-betting-agent"
 version = "0.1.0"
 description = "Value betting system for football: Dixon-Coles model, odds, API and Claude agent."
@@ -14,3 +14,25 @@ build-backend = "uv_build"
 
 [tool.uv.build-backend]
 module-name = "vba"
+
+[dependency-groups]
+dev = [
+    "pre-commit>=4.7.0",
+    "pytest>=9.1.1",
+    "ruff>=0.17.2",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM", "N"]
+
+[tool.ruff.format]
+quote-style = "double"
+line-ending = "lf"
