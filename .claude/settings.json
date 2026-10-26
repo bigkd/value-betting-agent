@@ -1,14 +1,23 @@
 {
   "permissions": {
     "allow": [
+      "Bash(uv *)",
       "PowerShell(uv *)",
+      "Bash(git status *)",
       "PowerShell(git status *)",
+      "Bash(git diff *)",
       "PowerShell(git diff *)",
+      "Bash(git log *)",
       "PowerShell(git log *)",
+      "Bash(git show *)",
+      "PowerShell(git show *)",
+      "Bash(git add *)",
       "PowerShell(git add *)",
+      "Bash(git commit *)",
       "PowerShell(git commit *)",
+      "Bash(git ls-files *)",
       "PowerShell(git ls-files *)"
     ],
-    "ask": ["PowerShell(git push *)"]
+    "ask": ["Bash(git push *)", "PowerShell(git push *)"]
   }
 }
