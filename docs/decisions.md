@@ -36,6 +36,14 @@ Short log of key technical decisions.
 - **Alternatives:** rewriting `matches.home_team`/`away_team` with canonical names; storing ids in `matches` at load time; seeds inserted only when missing.
 - **Reason:** raw names stay untouched, so the source data is never lost. Ids come from a view joining `team_aliases`, and the seed CSVs (versioned in the package, not in the git-ignored `data/`) are reloaded each time the schema is created, so fixing an alias needs no reload of matches. Unknown names are reported (ingestion warning and `vba.data.team_check`) instead of creating teams silently.
 
+## No xG for now: Understat discarded, model starts from goals and shots
+
+- **Alternatives:** scraping Understat anyway; FBref; a paid API (Sportmonks, TheStatsAPI); waiting for the phase 3 backtest before paying.
+- **Context:** Understat has no official API, and its `robots.txt` is `User-agent: *` / `Disallow: /`, so automated access is forbidden. FBref lost its Opta data in 2026. The sources that allow xG legally are paid: Sportmonks (about €53/month with the xG package) and TheStatsAPI ($50/month).
+- **Decision:** for now the model uses goals, shots and shots on target from football-data.co.uk. Whether xG is worth paying for is reviewed in phase 3, based on what it adds in the backtest. Both APIs are also evaluated for xG in the injuries/lineups spike (#10), including their terms on storing data. Issue #7 stays open, moved to the phase 3 milestone.
+- **Reusable design:** xG goes in its own table `match_xg` (`matches` untouched), exposed through the `matches_with_team_ids` view; source names resolve through `team_aliases` with their own `source`; each source match is paired by `(league, season, home_team_id, away_team_id)` with a date tolerance of 2 days and its goals are validated against football-data; unmatched and mismatching matches are reported. The xG load replaces each `(league, season)` itself and `load_season` does not touch `match_xg`, because every football-data ingestion reloads all seasons and would otherwise leave the database without xG.
+- **Process rule:** before any automated request to a new external source, check its robots.txt and terms of use (now in CLAUDE.md). Understat was queried before that check; the downloaded files were deleted and nothing from it was stored in the project.
+
 ## Dixon-Coles as the base model
 
 - **Alternatives:** independent Poisson, Elo ratings, machine learning models.
