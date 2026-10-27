@@ -61,7 +61,7 @@ def parse_match(row: dict[str, str], league: str, season: str) -> dict[str, obje
     """Build a `matches` record from a CSV row.
 
     home_team / away_team keep the names exactly as they come in the CSV and are
-    never modified; name normalization (issue #6) will add new columns instead.
+    never modified; canonical ids come from the matches_with_team_ids view.
     """
     day = parse_date(row["Date"])
     home, away = row["HomeTeam"].strip(), row["AwayTeam"].strip()

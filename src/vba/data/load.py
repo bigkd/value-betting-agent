@@ -10,6 +10,7 @@ import duckdb
 from vba.data.odds_mapping import unmapped_odds_columns
 from vba.data.odds_rows import parse_odds
 from vba.data.parse import parse_match, read_rows
+from vba.data.teams import unknown_team_names
 
 logger = logging.getLogger(__name__)
 
@@ -87,4 +88,14 @@ def load_season(
     except Exception:
         con.rollback()
         raise
+
+    unknown = unknown_team_names(con, league, season)
+    if unknown:
+        logger.warning(
+            "%s %s: %d team names have no alias in team_aliases.csv: %s",
+            league,
+            season,
+            len(unknown),
+            ", ".join(unknown),
+        )
     return len(matches), len(odds)
