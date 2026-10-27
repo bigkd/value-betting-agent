@@ -100,6 +100,21 @@ def test_no_warning_when_all_odds_columns_are_mapped(con, caplog):
     assert caplog.text == ""
 
 
+def test_unknown_team_names_are_logged(con, tmp_path, caplog):
+    csv = tmp_path / "new_team.csv"
+    csv.write_text(
+        "Date,HomeTeam,AwayTeam,FTHG,FTAG\n"
+        "01/08/24,Barcelona,Newtown,1,0\n"
+        "08/08/24,Alpha,Barcelona,0,0\n"
+    )
+
+    with caplog.at_level("WARNING", logger="vba.data.load"):
+        load_season(con, "SP1", "2425", csv)
+
+    assert "2 team names have no alias" in caplog.text
+    assert caplog.text.rstrip().endswith("Alpha, Newtown")  # Barcelona is known, so absent
+
+
 def test_failed_load_rolls_back(con, tmp_path):
     load_season(con, "SP1", "2425", SP1)
     before = _counts(con)

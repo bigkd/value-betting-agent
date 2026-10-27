@@ -13,6 +13,36 @@ def _read_seed(name: str) -> list[dict[str, str]]:
         return list(csv.DictReader(f))
 
 
+def unknown_team_names(
+    con: duckdb.DuckDBPyConnection, league: str | None = None, season: str | None = None
+) -> list[str]:
+    """Football-data team names in `matches` that have no alias, sorted.
+
+    Optionally restricted to one league and/or season.
+    """
+    conditions = []
+    params: list[str] = []
+    if league is not None:
+        conditions.append("league = ?")
+        params.append(league)
+    if season is not None:
+        conditions.append("season = ?")
+        params.append(season)
+    where = "".join(f" AND {c}" for c in conditions)
+    rows = con.execute(
+        f"""
+        SELECT home_team AS name FROM matches_with_team_ids
+        WHERE home_team_id IS NULL{where}
+        UNION
+        SELECT away_team FROM matches_with_team_ids
+        WHERE away_team_id IS NULL{where}
+        ORDER BY name
+        """,
+        params * 2,
+    ).fetchall()
+    return [row[0] for row in rows]
+
+
 def load_seeds(con: duckdb.DuckDBPyConnection) -> None:
     """Replace the contents of `teams` and `team_aliases` with the seed CSVs.
 
