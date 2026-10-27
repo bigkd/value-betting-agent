@@ -54,6 +54,15 @@ def test_fetch_odds_saves_raw_response_and_reads_quota(tmp_path):
     assert "apiKey" not in params
 
 
+def test_fetch_odds_only_asks_for_events_that_have_not_started(tmp_path):
+    fake = FakeFetch()
+
+    fetch_odds("soccer_epl", CAPTURED, raw_dir=tmp_path, fetch=fake)
+
+    [(_, params)] = fake.calls
+    assert params["commenceTimeFrom"] == "2026-10-27T19:05:09Z"
+
+
 def test_quota_headers_may_be_missing():
     assert Quota.from_headers({}) == Quota(last=None, used=None, remaining=None)
 

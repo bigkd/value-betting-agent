@@ -18,6 +18,7 @@ class FakeFetch:
 
     def __init__(self, remaining: int = 494):
         self.paths: list[str] = []
+        self.params: list[dict[str, str]] = []
         self.quota_checks = 0
         self.remaining = remaining  # what the API reports right now
 
@@ -27,6 +28,7 @@ class FakeFetch:
             self.quota_checks += 1
             return ApiResponse(b"[]", {**headers, "x-requests-last": "0"})
         self.paths.append(path)
+        self.params.append(params)
         return ApiResponse(FIXTURE.read_bytes(), headers)
 
 
@@ -56,6 +58,18 @@ def test_run_stores_a_snapshot_and_the_raw_file(paths, capsys):
         "soccer_spain_la_liga_20261027T190000Z.json"
     ]
     assert "494 credits remaining" in capsys.readouterr().out
+
+
+def test_run_requests_only_events_starting_after_the_run_time(paths):
+    fake = FakeFetch()
+
+    run(LA_LIGA, now=NOW, fetch=fake, **paths)
+    run(LA_LIGA, now=NOW + timedelta(hours=3, minutes=7), fetch=fake, **paths)
+
+    assert [p["commenceTimeFrom"] for p in fake.params] == [
+        "2026-10-27T19:00:00Z",
+        "2026-10-27T22:07:00Z",
+    ]
 
 
 def test_second_run_within_ttl_makes_no_api_call(paths, capsys):

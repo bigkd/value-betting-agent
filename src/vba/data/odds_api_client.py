@@ -107,8 +107,10 @@ def fetch_odds(
 ) -> tuple[list[dict], Quota, Path]:
     """Request current odds for one league and save the raw JSON before anything else.
 
-    captured_at is naive UTC. Returns the decoded events, the quota after the call and
-    the path of the raw file (named after the snapshot id).
+    captured_at is naive UTC. Only events that have not started yet are requested
+    (commenceTimeFrom = captured_at), so no live odds are stored: those move fast and
+    would not be a pre-match closing line. Returns the decoded events, the quota after
+    the call and the path of the raw file (named after the snapshot id).
     """
     response = fetch(
         f"/sports/{sport_key}/odds",
@@ -117,6 +119,7 @@ def fetch_odds(
             "markets": ",".join(markets),
             "oddsFormat": "decimal",
             "dateFormat": "iso",
+            "commenceTimeFrom": f"{captured_at:%Y-%m-%dT%H:%M:%SZ}",
         },
     )
     raw_dir.mkdir(parents=True, exist_ok=True)
