@@ -17,6 +17,20 @@ Short log of key technical decisions.
 - **Alternatives:** PostgreSQL, SQLite.
 - **Reason:** the workload is analytical (aggregations over historical matches) and single-user. DuckDB is embedded, needs no server and is columnar and fast for this. Revisit if the API needs concurrent writers.
 
+## Ingestion: stdlib download and CSV parsing, delete + insert per season
+
+- **Alternatives:** `httpx` and pandas for download and parsing; upsert with a primary key on `odds`.
+- **Reason:** the download is a plain GET and the CSVs change columns between seasons, so reading rows with `csv` and filling missing columns with NULL is more predictable than type inference. Only `duckdb` was added as a dependency. Idempotency comes from deleting and reinserting each (league, season) in one transaction, which avoids a key over a nullable `line`.
+- Bulk loading uses a temporary NDJSON file read by DuckDB: `executemany` took about 21 s for 45,000 odds rows, the file approach about 0.2 s. Betbrain (`Bb*`) and market (`Max*`/`Avg*`) aggregates are kept as separate bookmakers because they come from different sets of bookmakers.
+
+## Closing-line reference for CLV: Pinnacle, then Betfair Exchange, then market average
+
+- **Alternatives:** Pinnacle only; market average only.
+- **Context:** football-data.co.uk stopped publishing Pinnacle odds midway through 2025-26 and has none in 2026-27. Betfair Exchange (`betfair_exchange`) has closing odds since 2024-25, including the current season. The market average (`market_avg`) is available in all seasons from 2019-20.
+- **Decision:** the closing reference for CLV is Pinnacle in the historical backtest (up to 2024-25, the last season with complete Pinnacle data) and Betfair Exchange from then on, with the market average as a fallback when neither has a price for a match. Pinnacle remains the best sharp reference where it exists, so it is not dropped for the older seasons just to keep one source everywhere.
+- **Configurable:** the reference is a setting, not a constant in the code: an ordered list of bookmakers (for example `pinnacle, betfair_exchange, market_avg`), where each match uses the first one that has closing odds for the market. The ingestion keeps all bookmakers, so changing the reference needs no reload.
+- **Consequence:** CLV measured against different references is not strictly comparable across seasons. Reports must say which reference each figure used. Tracked in the issue "Configurable closing-line reference for CLV".
+
 ## Dixon-Coles as the base model
 
 - **Alternatives:** independent Poisson, Elo ratings, machine learning models.

@@ -4,7 +4,7 @@
 
 A football value betting system: it estimates match outcome probabilities with a Dixon-Coles model and compares them with bookmaker odds to find value bets.
 
-**Status:** Phase 1 (project setup) complete. Next: data ingestion.
+**Status:** Phase 1 (project setup) complete. Phase 2 in progress: historical results and odds from football-data.co.uk load into DuckDB.
 
 ## Planned features
 
@@ -21,7 +21,7 @@ A football value betting system: it estimates match outcome probabilities with a
 ## Tech stack
 
 - Python 3.12+, managed with [uv](https://docs.astral.sh/uv/)
-- DuckDB for storage (planned)
+- DuckDB for storage
 - pytest, ruff and GitHub Actions for tests, lint and CI
 - Claude + MCP for the agent (planned)
 - React + TypeScript for the dashboard (planned)
@@ -38,6 +38,14 @@ uv run pytest
 ```
 
 Lint and format: `uv run ruff check` and `uv run ruff format`.
+
+Load the historical data (La Liga and Premier League, 2018-19 to the current season) into `data/vba.duckdb`:
+
+```bash
+uv run python -m vba.data.ingest
+```
+
+See [docs/data-ingestion.md](docs/data-ingestion.md) for the tables and the odds column mapping.
 
 ## Roadmap
 
