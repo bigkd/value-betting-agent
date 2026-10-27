@@ -60,12 +60,60 @@ WHERE m.league = 'SP1' AND m.season = '2425'
   AND o.bookmaker = 'pinnacle' AND o.market = '1x2' AND o.is_closing;
 ```
 
+## Upcoming fixtures and odds (The Odds API)
+
+Current odds and upcoming fixtures come from [The Odds API](https://the-odds-api.com) (free plan: 500 credits/month). The key goes in `.env` as `ODDS_API_KEY` (see `.env.example`); the code loads it with `python-dotenv` and never prints it.
+
+```bash
+uv run python -m vba.data.odds_ingest                  # La Liga and Premier, skipping leagues inside the TTL
+uv run python -m vba.data.odds_ingest --ttl-minutes 5  # custom TTL (default 60)
+uv run python -m vba.data.odds_ingest --force          # ignore the TTL
+uv run python -m vba.data.odds_ingest --sport soccer_epl
+```
+
+- Each run is a *snapshot*: one request per league (`soccer_spain_la_liga`, `soccer_epl`) for markets `h2h` and `totals` in region `eu`. A league whose last snapshot is newer than the TTL is not requested, so a second run within the TTL makes no API call. Scheduling snapshots near kickoff is a separate task (#28).
+- **Cost:** markets x regions credits per league: 2 per league and 4 per run with the defaults. `/events` is free; empty responses are not charged. The run stops if the last known remaining quota is below the cost.
+- The raw JSON is saved before anything else as `data/raw/odds_api/{sport_key}_{YYYYMMDDTHHMMSSZ}.json` (UTC). The same stem is the `snapshot_id`.
+- The `eu` region includes Pinnacle and Betfair Exchange but no Spanish bookmakers, so the odds actually taken are entered by the user when registering a bet. Other markets (btts, corners, cards) are per-event and have very few bookmakers, so they are not part of the base snapshot.
+- Terms: the Odds API allows storing the data and using it for models, but not redistributing it as a data product. The raw files are git-ignored and `tests/fixtures/odds_api_soccer_la_liga.json` is a response trimmed to 2 events and 4 bookmakers.
+
+### `odds_api_events` — upcoming fixtures, upserted by `event_id`
+
+| Column | Notes |
+|---|---|
+| `event_id` | Primary key, the API's id. |
+| `sport_key`, `league` | `soccer_spain_la_liga` / `SP1`, `soccer_epl` / `E0`. |
+| `commence_time` | Kickoff, naive UTC. Updated if the API moves it. |
+| `home_name_raw`, `away_name_raw` | Names as the API writes them. |
+| `home_team_id`, `away_team_id` | Resolved through `team_aliases` with source `the-odds-api`; NULL while a name has no alias. |
+| `first_seen_at`, `last_seen_at` | Capture time of the first and last snapshot that listed the event. |
+
+Events are not linked to `matches`: that will be done once a match has a result.
+
+Every run first tries to fill NULL team ids again, so adding an alias to `team_aliases.csv` fixes events stored earlier. Names still without alias are logged in one warning at the end of the run.
+
+### `odds_snapshots` — append-only, long format
+
+Same vocabulary as `odds` (market `1x2` or `ou`, selection `home`/`draw`/`away` or `over`/`under`), plus `snapshot_id`, `captured_at` (naive UTC), `event_id` and `bookmaker_updated_at`. `h2h_lay` (exchange lay prices) is discarded. Rows are only inserted, never updated or deleted, so every snapshot is kept. The closing line of an event is its last snapshot before kickoff:
+
+```sql
+SELECT s.bookmaker, s.market, s.selection, s.line, s.odds
+FROM odds_snapshots s JOIN odds_api_events e USING (event_id)
+WHERE e.event_id = ? AND s.captured_at = (
+    SELECT max(captured_at) FROM odds_snapshots
+    WHERE event_id = e.event_id AND captured_at < e.commence_time);
+```
+
+### `odds_api_requests` — quota log
+
+One row per snapshot: `snapshot_id`, `captured_at`, `sport_key`, `regions`, `markets`, `credits_last`, `credits_used`, `credits_remaining` (from the `x-requests-*` response headers), `n_events` and `raw_path`. The TTL is computed from it.
+
 ## Team names
 
 Each source spells teams differently (`Ath Madrid`, `Man City`, `Nott'm Forest`), so every team has a canonical `team_id` (for example `atletico_madrid`).
 
 - [`src/vba/data/seeds/teams.csv`](../src/vba/data/seeds/teams.csv): `team_id,name,country`. Names are the short press name, with accents and without FC/RCD/AFC/CF.
-- [`src/vba/data/seeds/team_aliases.csv`](../src/vba/data/seeds/team_aliases.csv): `source,alias,team_id`. Only `football-data` for now.
+- [`src/vba/data/seeds/team_aliases.csv`](../src/vba/data/seeds/team_aliases.csv): `source,alias,team_id`. Sources: `football-data` and `the-odds-api`.
 - `create_schema` reloads both CSVs into the `teams` and `team_aliases` tables on every run, so the CSV is the source of truth: editing an alias needs no data reload.
 - `matches` is not modified. The view `matches_with_team_ids` adds `home_team_id` and `away_team_id` by joining `matches` with `team_aliases` (NULL when the name has no alias):
 
@@ -73,7 +121,7 @@ Each source spells teams differently (`Ath Madrid`, `Man City`, `Nott'm Forest`)
 SELECT date, home_team_id, away_team_id FROM matches_with_team_ids WHERE league = 'SP1';
 ```
 
-- `resolve_team(con, source, name)` in `teams.py` returns the `team_id` ignoring case, accents and punctuation, and raises `UnknownTeamError` for unknown names. It is meant for future sources (Understat, The Odds API).
+- `resolve_team(con, source, name)` in `teams.py` returns the `team_id` ignoring case, accents and punctuation, and raises `UnknownTeamError` for unknown names. The Odds API ingestion uses it; Understat would too.
 
 **Adding a team or alias:** add the rows to the CSVs (a new `team_id` goes in `teams.csv` first). The ingestion logs a warning listing any team name without alias, and you can check the whole database with:
 
@@ -102,3 +150,7 @@ When a CSV has columns that look like odds but are not mapped, the load logs a w
 | `team_check.py` | Lists team names without alias in the database. |
 | `load.py` | Idempotent, transactional load of a season. |
 | `ingest.py` | Entry point that ties everything together. |
+| `odds_api_client.py` | The Odds API requests, key handling, quota headers and raw files. |
+| `odds_api_parse.py` | API response into event and odds rows. |
+| `odds_api_load.py` | Append-only snapshot load, event upsert and team id re-resolution. |
+| `odds_ingest.py` | Entry point for snapshots, with TTL and quota guard. |

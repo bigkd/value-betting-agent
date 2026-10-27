@@ -44,6 +44,14 @@ Short log of key technical decisions.
 - **Reusable design:** xG goes in its own table `match_xg` (`matches` untouched), exposed through the `matches_with_team_ids` view; source names resolve through `team_aliases` with their own `source`; each source match is paired by `(league, season, home_team_id, away_team_id)` with a date tolerance of 2 days and its goals are validated against football-data; unmatched and mismatching matches are reported. The xG load replaces each `(league, season)` itself and `load_season` does not touch `match_xg`, because every football-data ingestion reloads all seasons and would otherwise leave the database without xG.
 - **Process rule:** before any automated request to a new external source, check its robots.txt and terms of use (now in CLAUDE.md). Understat was queried before that check; the downloaded files were deleted and nothing from it was stored in the project.
 
+## Odds snapshots: append-only table, `h2h` + `totals` in region `eu`
+
+- **Alternatives:** overwriting the latest odds per match; only `h2h`; regions `uk` or `eu,uk`; per-event markets (btts, corners, cards).
+- **Reason:** CLV needs the closing line, which is the last snapshot before kickoff, so every snapshot is kept and `odds_snapshots` is only ever inserted into. A probe of La Liga (4 credits) showed that `eu` returns Pinnacle plus about 20 bookmakers for `h2h`, 15 for `totals` (several lines), but only 3 for `btts`, 1 (Pinnacle) for `alternate_totals_corners` and none for `alternate_totals_cards`, and the per-event markets cost credits per event. Base snapshot: 2 credits per league. No Spanish bookmakers are in `eu`, so the odds taken are entered by the user with each bet.
+- **Quota:** the free plan has 500 credits/month. Every call is logged with the remaining credits from the response headers, and a TTL (default 60 minutes) stops repeated runs from spending them. Scheduling snapshots near kickoff is tracked in #28. Pinnacle's closing corners line may be added there as a reference for a future corners model.
+- **Terms:** The Odds API allows storing data and using it for models, but not redistributing it as a data product. Raw files stay in the git-ignored `data/`, and the test fixture is trimmed to 2 events and 4 bookmakers.
+- **Key handling:** `python-dotenv` loads `ODDS_API_KEY` from `.env`. The key is added to the request only inside `http_get` and errors are built without the URL, so it never reaches logs.
+
 ## Dixon-Coles as the base model
 
 - **Alternatives:** independent Poisson, Elo ratings, machine learning models.
