@@ -3,6 +3,7 @@
 Run with: uv run python -m vba.data.ingest
 """
 
+import logging
 import urllib.error
 from collections.abc import Callable, Sequence
 from datetime import date
@@ -42,6 +43,7 @@ def run(
 
 
 def main() -> None:
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
     run()
 
 

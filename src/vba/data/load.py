@@ -1,11 +1,15 @@
 """Idempotent load of one league-season CSV into DuckDB."""
 
+import logging
 from pathlib import Path
 
 import duckdb
 
+from vba.data.odds_mapping import unmapped_odds_columns
 from vba.data.odds_rows import parse_odds
 from vba.data.parse import parse_match, read_rows
+
+logger = logging.getLogger(__name__)
 
 
 def _insert(con: duckdb.DuckDBPyConnection, table: str, records: list[dict[str, object]]) -> None:
@@ -26,9 +30,21 @@ def load_season(
     rows. If anything fails the database stays as it was. Returns the number of
     (matches, odds) rows loaded.
     """
+    rows = read_rows(csv_path)
+    if rows:
+        unmapped = unmapped_odds_columns(rows[0])
+        if unmapped:
+            logger.warning(
+                "%s %s: %d columns look like odds but are not in ODDS_COLUMNS and were ignored: %s",
+                league,
+                season,
+                len(unmapped),
+                ", ".join(unmapped),
+            )
+
     matches: list[dict[str, object]] = []
     odds: list[dict[str, object]] = []
-    for row in read_rows(csv_path):
+    for row in rows:
         match = parse_match(row, league, season)
         matches.append(match)
         odds.extend(parse_odds(row, str(match["match_id"])))

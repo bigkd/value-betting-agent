@@ -60,6 +60,27 @@ def test_missing_columns_are_stored_as_null(con):
     assert row == (None, None, 1)
 
 
+def test_unmapped_odds_columns_are_logged(con, tmp_path, caplog):
+    csv = tmp_path / "new_bookie.csv"
+    csv.write_text(
+        "Date,HomeTeam,AwayTeam,FTHG,FTAG,B365H,ZZZH,ZZZ>2.5\n"
+        "01/08/24,Alpha,Beta,1,0,2.00,1.90,1.80\n"
+    )
+
+    with caplog.at_level("WARNING", logger="vba.data.load"):
+        load_season(con, "SP1", "2425", csv)
+
+    assert "ZZZH, ZZZ>2.5" in caplog.text
+    assert "B365H" not in caplog.text
+
+
+def test_no_warning_when_all_odds_columns_are_mapped(con, caplog):
+    with caplog.at_level("WARNING", logger="vba.data.load"):
+        load_season(con, "SP1", "2425", SP1)
+
+    assert caplog.text == ""
+
+
 def test_failed_load_rolls_back(con, tmp_path):
     load_season(con, "SP1", "2425", SP1)
     before = _counts(con)
