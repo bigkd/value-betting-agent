@@ -11,6 +11,11 @@ A football value betting system: it estimates match outcome probabilities with a
 - **Data:** ingest and store historical matches, xG and bookmaker odds.
 - **Model:** fit a Dixon-Coles model to estimate the probability of each match outcome, and backtest it.
 - **Value bets:** convert odds to implied probabilities and flag bets where the model's probability beats the market's.
+- **Context signals:** add information the statistical model does not see, in three levels:
+  - Level 1: signals computed from data and validated by backtest: suspensions from card accumulation (including deliberately picking up a fifth yellow), motivation from the league table (nothing at stake, already champion or relegated) and rotation risk (rest days, important upcoming match).
+  - Level 2: injuries, suspensions and line-ups from a structured API.
+  - Level 3: the agent reads news and turns it into structured signals (player, status, confidence, source). It does not adjust probabilities on its own: it flags markets to review and explains why, and the user decides.
+- **CLV tracking:** log every signal and bet with the odds taken and the closing odds, to measure closing line value (CLV).
 - **Agent:** a Claude agent that reasons over the model and betting outputs, using tools exposed through an MCP server.
 
 ## Tech stack
@@ -37,10 +42,13 @@ Lint and format: `uv run ruff check` and `uv run ruff format`.
 ## Roadmap
 
 - [x] Phase 1: project setup (tooling, CI, agent conventions)
-- [ ] Phase 2: data ingestion and storage (matches, xG, odds)
-- [ ] Phase 3: Dixon-Coles model, value engine and backtest
-- [ ] Phase 4: API, Claude agent and MCP server
+- [ ] Phase 2: data ingestion and storage (matches, xG, odds) and level 2 signals (injuries, suspensions, line-ups from a structured API)
+- [ ] Phase 3: Dixon-Coles model, value engine, backtest and level 1 signals (cards, motivation, rotation)
+- [ ] Phase 4: API, Claude agent and MCP server, with level 3 signals (news read by the agent, CLV tracking)
 - [ ] Phase 5: dashboard (React/TypeScript)
+- [ ] Phase 6 (optional): NBA player props
+
+The project is football-first; phase 6 only starts if the football system works.
 
 See [docs/architecture.md](docs/architecture.md) for the system design and [docs/decisions.md](docs/decisions.md) for the reasoning behind key choices.
 
