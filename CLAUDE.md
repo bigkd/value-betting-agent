@@ -51,6 +51,7 @@ Under `src/vba/`:
 - Propose a plan before any change that touches more than one file.
 - Make small commits using Conventional Commits; never push.
 - Never read or commit `.env` or any keys.
+- Before making any automated request to a new external source, check its robots.txt and terms of use. If they forbid it, stop and ask.
 
 ## Working with the user
 
