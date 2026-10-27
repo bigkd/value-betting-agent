@@ -17,6 +17,12 @@ Short log of key technical decisions.
 - **Alternatives:** PostgreSQL, SQLite.
 - **Reason:** the workload is analytical (aggregations over historical matches) and single-user. DuckDB is embedded, needs no server and is columnar and fast for this. Revisit if the API needs concurrent writers.
 
+## Ingestion: stdlib download and CSV parsing, delete + insert per season
+
+- **Alternatives:** `httpx` and pandas for download and parsing; upsert with a primary key on `odds`.
+- **Reason:** the download is a plain GET and the CSVs change columns between seasons, so reading rows with `csv` and filling missing columns with NULL is more predictable than type inference. Only `duckdb` was added as a dependency. Idempotency comes from deleting and reinserting each (league, season) in one transaction, which avoids a key over a nullable `line`.
+- Bulk loading uses a temporary NDJSON file read by DuckDB: `executemany` took about 21 s for 45,000 odds rows, the file approach about 0.2 s. Betbrain (`Bb*`) and market (`Max*`/`Avg*`) aggregates are kept as separate bookmakers because they come from different sets of bookmakers.
+
 ## Dixon-Coles as the base model
 
 - **Alternatives:** independent Poisson, Elo ratings, machine learning models.
