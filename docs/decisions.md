@@ -31,3 +31,12 @@ Short log of key technical decisions.
 
 - **Alternatives:** writing everything by hand.
 - **Reason:** the agent writes the code in small steps while the author directs and reviews each change. Working rules are in [CLAUDE.md](../CLAUDE.md).
+
+## Context signals on top of the statistical model
+
+- **Alternatives:** statistical model only; automatic probability adjustment from news.
+- **Reason:** Dixon-Coles only sees past results, so it misses information such as suspensions, motivation, rotation, injuries and line-ups. Signals are split in three levels by how they can be validated:
+  - Levels 1 and 2 come from data, so they are validated with a historical backtest.
+  - Level 3 (news read by the agent) cannot be backtested: there is no reliable historical record of what was known and when, and an LLM may already have seen the outcomes. It is measured going forward with closing line value (CLV), logging odds taken and closing odds for every signal and bet.
+  - Because of that, level 3 signals do not adjust probabilities automatically. The agent flags markets to review and explains why, and the user decides.
+- Football comes first. NBA player props is an optional phase 6.
