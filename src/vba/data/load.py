@@ -1,6 +1,8 @@
 """Idempotent load of one league-season CSV into DuckDB."""
 
+import json
 import logging
+import tempfile
 from pathlib import Path
 
 import duckdb
@@ -13,12 +15,33 @@ logger = logging.getLogger(__name__)
 
 
 def _insert(con: duckdb.DuckDBPyConnection, table: str, records: list[dict[str, object]]) -> None:
+    """Bulk insert through a temporary NDJSON file read by DuckDB.
+
+    executemany sends one statement per row (~20 s for a season of odds); letting
+    DuckDB read a file loads the same rows in a fraction of a second. NDJSON keeps
+    NULLs distinct from empty strings and escapes any character in team names.
+    """
     if not records:
         return
     columns = list(records[0])
-    placeholders = ", ".join("?" for _ in columns)
-    sql = f"INSERT INTO {table} ({', '.join(columns)}) VALUES ({placeholders})"
-    con.executemany(sql, [[record[c] for c in columns] for record in records])
+    types = dict(
+        con.execute(
+            "SELECT column_name, data_type FROM information_schema.columns WHERE table_name = ?",
+            [table],
+        ).fetchall()
+    )
+    column_types = ", ".join(f"'{c}': '{types[c]}'" for c in columns)
+    with tempfile.TemporaryDirectory() as tmp:
+        path = Path(tmp) / f"{table}.ndjson"
+        with path.open("w", encoding="utf-8") as f:
+            for record in records:
+                f.write(json.dumps(record, default=str) + "\n")  # dates -> ISO strings
+        con.execute(
+            f"INSERT INTO {table} ({', '.join(columns)}) "
+            f"SELECT {', '.join(columns)} FROM read_json(?, format = 'newline_delimited', "
+            f"columns = {{{column_types}}})",
+            [path.as_posix()],
+        )
 
 
 def load_season(

@@ -1,3 +1,4 @@
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -58,6 +59,24 @@ def test_missing_columns_are_stored_as_null(con):
         "SELECT home_shots, referee, ft_home_goals FROM matches WHERE home_team = 'Man United'"
     ).fetchone()
     assert row == (None, None, 1)
+
+
+def test_special_characters_and_types_survive_bulk_insert(con, tmp_path):
+    csv = tmp_path / "special.csv"
+    csv.write_text(
+        "Date,HomeTeam,AwayTeam,FTHG,FTAG,Referee,B365H,B365AHH,AHh\n"
+        '01/08/24,"Atlético, ""B""",Real Betis \\ \'s,1,0,,2.50,1.90,-0.25\n',
+        encoding="utf-8",
+    )
+
+    load_season(con, "SP1", "2425", csv)
+
+    match = con.execute(
+        "SELECT home_team, away_team, date, ft_home_goals, referee FROM matches"
+    ).fetchone()
+    assert match == ('Atlético, "B"', "Real Betis \\ 's", date(2024, 8, 1), 1, None)
+    ah = con.execute("SELECT line, is_closing, odds FROM odds WHERE market = 'ah'").fetchone()
+    assert ah == (-0.25, False, 1.90)
 
 
 def test_unmapped_odds_columns_are_logged(con, tmp_path, caplog):
