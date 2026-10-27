@@ -25,6 +25,7 @@ Package manager is `uv` (Python >=3.12, `src/` layout, module name `vba`).
 - Lint: `uv run ruff check` (add `--fix` to autofix)
 - Format: `uv run ruff format`
 - Ingest football-data.co.uk into `data/vba.duckdb`: `uv run python -m vba.data.ingest` (needs network; tests never do). Details in `docs/data-ingestion.md`.
+- Snapshot upcoming fixtures and odds from The Odds API: `uv run python -m vba.data.odds_ingest` (needs `ODDS_API_KEY` in `.env` and spends credits; `--ttl-minutes N`, `--force`; tests never do).
 
 CI (`.github/workflows/ci.yml`) runs `uv sync --locked`, `ruff check`, `ruff format --check` and `pytest` on pushes and PRs to `main`, so keep `uv.lock` in sync with `pyproject.toml`.
 

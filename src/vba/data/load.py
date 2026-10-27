@@ -15,7 +15,9 @@ from vba.data.teams import unknown_team_names
 logger = logging.getLogger(__name__)
 
 
-def _insert(con: duckdb.DuckDBPyConnection, table: str, records: list[dict[str, object]]) -> None:
+def insert_records(
+    con: duckdb.DuckDBPyConnection, table: str, records: list[dict[str, object]]
+) -> None:
     """Bulk insert through a temporary NDJSON file read by DuckDB.
 
     executemany sends one statement per row (~20 s for a season of odds); letting
@@ -82,8 +84,8 @@ def load_season(
             [league, season],
         )
         con.execute("DELETE FROM matches WHERE league = ? AND season = ?", [league, season])
-        _insert(con, "matches", matches)
-        _insert(con, "odds", odds)
+        insert_records(con, "matches", matches)
+        insert_records(con, "odds", odds)
         con.commit()
     except Exception:
         con.rollback()
