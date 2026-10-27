@@ -50,6 +50,16 @@ def test_parse_match_missing_columns_become_null():
     assert match["referee"] is None
 
 
+def test_read_rows_keeps_line_breaks_inside_quoted_fields(tmp_path):
+    path = tmp_path / "multiline.csv"
+    path.write_bytes(b'Date,HomeTeam,AwayTeam\r\n01/08/24,"Real\nBetis",Bilbao\r\n')
+
+    rows = read_rows(path)
+
+    assert len(rows) == 1
+    assert rows[0]["HomeTeam"] == "Real\nBetis"
+
+
 def test_read_rows_falls_back_to_latin1(tmp_path):
     path = tmp_path / "latin.csv"
     path.write_bytes("Date,HomeTeam,AwayTeam\n01/08/24,Atlético,Bilbao\n".encode("latin-1"))

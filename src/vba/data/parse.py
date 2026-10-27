@@ -1,6 +1,7 @@
 """Parse football-data.co.uk CSV rows into `matches` records."""
 
 import csv
+import io
 from datetime import date, datetime
 from pathlib import Path
 
@@ -34,7 +35,8 @@ def read_rows(path: Path) -> list[dict[str, str]]:
         text = path.read_text(encoding="utf-8-sig")
     except UnicodeDecodeError:
         text = path.read_text(encoding="latin-1")
-    rows = csv.DictReader(text.splitlines())
+    # newline="" lets the csv module handle line breaks inside quoted fields itself.
+    rows = csv.DictReader(io.StringIO(text, newline=""))
     # Files often end with blank lines: keep only rows that have a date and teams.
     return [r for r in rows if r.get("Date") and r.get("HomeTeam") and r.get("AwayTeam")]
 
