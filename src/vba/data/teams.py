@@ -1,11 +1,50 @@
 """Canonical teams and their per-source aliases, seeded from versioned CSV files."""
 
 import csv
+import re
+import unicodedata
 from pathlib import Path
 
 import duckdb
 
 SEEDS_DIR = Path(__file__).parent / "seeds"
+
+
+class UnknownTeamError(LookupError):
+    """A source used a team name that has no alias."""
+
+
+def normalize_name(name: str) -> str:
+    """Lowercase, strip accents, drop apostrophes and punctuation, collapse spaces.
+
+    "Atlético  de Madrid" -> "atletico de madrid", "Nott'm Forest" -> "nottm forest".
+    """
+    # NFKD splits "é" into "e" + a combining accent, which category "Mn" lets us drop.
+    decomposed = unicodedata.normalize("NFKD", name)
+    unaccented = "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
+    no_apostrophes = re.sub(r"['’`]", "", unaccented.lower())
+    return " ".join(re.sub(r"[^a-z0-9]+", " ", no_apostrophes).split())
+
+
+def resolve_team(con: duckdb.DuckDBPyConnection, source: str, name: str) -> str:
+    """Return the canonical team_id for `name` as written by `source`.
+
+    Both the name and the stored aliases are normalized before comparing, so
+    "ATLETICO MADRID" matches an alias "Atletico Madrid". Raises UnknownTeamError
+    instead of creating teams silently.
+    """
+    rows = con.execute(
+        "SELECT alias, team_id FROM team_aliases WHERE source = ?", [source]
+    ).fetchall()
+    by_key: dict[str, str] = {}
+    for alias, team_id in rows:
+        key = normalize_name(alias)
+        if by_key.setdefault(key, team_id) != team_id:
+            raise ValueError(f"{source} aliases collide after normalization: {alias!r}")
+    try:
+        return by_key[normalize_name(name)]
+    except KeyError:
+        raise UnknownTeamError(f"No alias for {name!r} from source {source!r}") from None
 
 
 def _read_seed(name: str) -> list[dict[str, str]]:
