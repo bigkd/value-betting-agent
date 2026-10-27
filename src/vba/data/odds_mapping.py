@@ -57,6 +57,9 @@ BOOKMAKERS_1X2 = {
     "SB": "sportingbet",
     "SJ": "stan_james",
     "SK": "skybet",
+    # SKB is not in notes.txt. Inferred to be Sky Bet's current prefix: it appears (2026-27)
+    # in files without SK* columns and carries prices close to the other bookmakers.
+    "SKB": "skybet",
     "SO": "sporting_odds",
     "SY": "stanleybet",
     "VC": "vc_bet",  # now BetVictor, but the notes list it separately from BV

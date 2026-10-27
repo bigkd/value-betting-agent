@@ -68,6 +68,13 @@ def test_prefixes_follow_notes_txt():
     assert ODDS_COLUMNS["GB>2.5"].bookmaker == "gamebookers"
 
 
+def test_skb_columns_map_to_skybet():
+    # Columns reported as unmapped in the 2026-27 files.
+    assert ODDS_COLUMNS["SKBH"] == OddsColumn("skybet", "1x2", "home", False)
+    assert ODDS_COLUMNS["SKBCD"] == OddsColumn("skybet", "1x2", "draw", True)
+    assert unmapped_odds_columns(["SKBH", "SKBD", "SKBA", "SKBCH", "SKBCD", "SKBCA"]) == []
+
+
 def test_old_handicap_columns_use_their_own_line_column():
     assert ODDS_COLUMNS["GBAHH"].line_column == "GBAH"
     assert ODDS_COLUMNS["LBAHA"].line_column == "LBAH"
