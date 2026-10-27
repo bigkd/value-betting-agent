@@ -88,3 +88,26 @@ def test_reloading_seeds_replaces_edited_rows():
 
     betis = con.execute("SELECT team_id FROM team_aliases WHERE alias = 'Betis'").fetchone()
     assert betis == ("real_betis",)
+
+
+def test_create_schema_creates_odds_api_tables():
+    con = connect(":memory:")
+    create_schema(con)
+
+    assert {"event_id", "league", "commence_time", "home_team_id", "away_team_id"} <= _columns(
+        con, "odds_api_events"
+    )
+    assert _columns(con, "odds_snapshots") == {
+        "snapshot_id",
+        "captured_at",
+        "event_id",
+        "bookmaker",
+        "market",
+        "selection",
+        "line",
+        "odds",
+        "bookmaker_updated_at",
+    }
+    assert {"snapshot_id", "credits_last", "credits_remaining", "raw_path"} <= _columns(
+        con, "odds_api_requests"
+    )
