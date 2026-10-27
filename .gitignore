@@ -29,6 +29,9 @@ htmlcov/
 .env.*
 !.env.example
 
+# Claude Code personal settings (.claude/settings.json stays tracked)
+.claude/settings.local.json
+
 # IDE / OS
 .idea/
 .vscode/
