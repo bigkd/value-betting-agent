@@ -1,4 +1,4 @@
-from vba.data.odds_mapping import ODDS_COLUMNS, OddsColumn
+from vba.data.odds_mapping import ODDS_COLUMNS, OddsColumn, unmapped_odds_columns
 
 # Odds columns copied from the real headers of three seasons (everything after AR,
 # without the count columns Bb1X2/BbOU/BbAH and the line columns AHh/AHCh/BbAHh).
@@ -51,10 +51,37 @@ def test_asian_handicap_reads_line_from_column():
     assert ODDS_COLUMNS["PCAHA"] == OddsColumn("pinnacle", "ah", "away", True, line_column="AHCh")
 
 
-def test_legacy_columns_map_to_market_aggregates():
-    assert ODDS_COLUMNS["BbMxH"] == OddsColumn("market_max", "1x2", "home", False)
-    assert ODDS_COLUMNS["BbAv<2.5"] == OddsColumn("market_avg", "ou", "under", False, line=2.5)
+def test_legacy_columns_map_to_betbrain_aggregates():
+    # Betbrain max/avg are a different set of bookmakers than the Max*/Avg* market columns.
+    assert ODDS_COLUMNS["BbMxH"] == OddsColumn("betbrain_max", "1x2", "home", False)
+    assert ODDS_COLUMNS["BbAv<2.5"] == OddsColumn("betbrain_avg", "ou", "under", False, line=2.5)
     assert ODDS_COLUMNS["BbAvAHA"].line_column == "BbAHh"
+
+
+def test_prefixes_follow_notes_txt():
+    assert ODDS_COLUMNS["BWH"].bookmaker == "bet_and_win"  # Bet&Win, not Betway
+    assert ODDS_COLUMNS["BFDD"].bookmaker == "betfred"
+    assert ODDS_COLUMNS["BFD"].bookmaker == "betfair"  # draw odds, not Betfred
+    assert ODDS_COLUMNS["BMGMA"].bookmaker == "betmgm"
+    assert ODDS_COLUMNS["PH"].bookmaker == "pinnacle"  # alias of PSH
+    assert ODDS_COLUMNS["LBA"].bookmaker == "ladbrokes"
+    assert ODDS_COLUMNS["GB>2.5"].bookmaker == "gamebookers"
+
+
+def test_old_handicap_columns_use_their_own_line_column():
+    assert ODDS_COLUMNS["GBAHH"].line_column == "GBAH"
+    assert ODDS_COLUMNS["LBAHA"].line_column == "LBAH"
+
+
+def test_unmapped_odds_columns_flags_only_odds_like_columns():
+    header = ["Div", "Date", "FTR", "HS", "AHh", "BbAH", "PSH", "XYZH", "NEW>2.5", "Referee"]
+
+    assert unmapped_odds_columns(header) == ["XYZH", "NEW>2.5"]
+
+
+def test_real_headers_have_no_unmapped_odds_columns():
+    for columns in (COLUMNS_1819, COLUMNS_1920, COLUMNS_2425):
+        assert unmapped_odds_columns(columns.split(",")) == []
 
 
 def test_non_odds_columns_are_not_mapped():
