@@ -80,3 +80,10 @@ def test_check_reports_unknown_names_in_a_database_file(tmp_path, capsys):
 
     assert check(db) == 1
     assert "Nobody FC" in capsys.readouterr().out
+
+
+def test_the_odds_api_aliases_resolve_to_known_teams(con):
+    assert resolve_team(con, "the-odds-api", "Alavés") == "alaves"
+    assert resolve_team(con, "the-odds-api", "Brighton and Hove Albion") == "brighton"
+    assert resolve_team(con, "the-odds-api", "Tottenham Hotspur") == "tottenham"
+    assert resolve_team(con, "the-odds-api", "Real Racing Club de Santander") == "racing_santander"
