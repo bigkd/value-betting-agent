@@ -31,6 +31,11 @@ Short log of key technical decisions.
 - **Configurable:** the reference is a setting, not a constant in the code: an ordered list of bookmakers (for example `pinnacle, betfair_exchange, market_avg`), where each match uses the first one that has closing odds for the market. The ingestion keeps all bookmakers, so changing the reference needs no reload.
 - **Consequence:** CLV measured against different references is not strictly comparable across seasons. Reports must say which reference each figure used. Tracked in the issue "Configurable closing-line reference for CLV".
 
+## Team names: CSV seeds reloaded on every run, ids through a view
+
+- **Alternatives:** rewriting `matches.home_team`/`away_team` with canonical names; storing ids in `matches` at load time; seeds inserted only when missing.
+- **Reason:** raw names stay untouched, so the source data is never lost. Ids come from a view joining `team_aliases`, and the seed CSVs (versioned in the package, not in the git-ignored `data/`) are reloaded each time the schema is created, so fixing an alias needs no reload of matches. Unknown names are reported (ingestion warning and `vba.data.team_check`) instead of creating teams silently.
+
 ## Dixon-Coles as the base model
 
 - **Alternatives:** independent Poisson, Elo ratings, machine learning models.

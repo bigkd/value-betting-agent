@@ -22,7 +22,7 @@ uv run python -m vba.data.ingest
 |---|---|
 | `match_id` | Primary key: `{league}_{season}_{date}_{home_team}_{away_team}`, e.g. `SP1_2425_2024-10-26_Barcelona_Real Madrid`. |
 | `league`, `season`, `date` | Season is the football-data code (`2425` = 2024-25). |
-| `home_team`, `away_team` | Names exactly as in the CSV, never modified. Normalization (issue #6) will add new columns. |
+| `home_team`, `away_team` | Names exactly as in the CSV, never modified. Canonical ids are in the `matches_with_team_ids` view (see below). |
 | `ht_*_goals`, `ft_*_goals` | Half-time and full-time goals (`ht_home_goals`, `ft_away_goals`, ...). |
 | `home_/away_` `shots`, `shots_on_target`, `corners`, `fouls`, `yellow`, `red` | Match statistics. |
 | `referee` | When the CSV has it. |
@@ -60,6 +60,29 @@ WHERE m.league = 'SP1' AND m.season = '2425'
   AND o.bookmaker = 'pinnacle' AND o.market = '1x2' AND o.is_closing;
 ```
 
+## Team names
+
+Each source spells teams differently (`Ath Madrid`, `Man City`, `Nott'm Forest`), so every team has a canonical `team_id` (for example `atletico_madrid`).
+
+- [`src/vba/data/seeds/teams.csv`](../src/vba/data/seeds/teams.csv): `team_id,name,country`. Names are the short press name, with accents and without FC/RCD/AFC/CF.
+- [`src/vba/data/seeds/team_aliases.csv`](../src/vba/data/seeds/team_aliases.csv): `source,alias,team_id`. Only `football-data` for now.
+- `create_schema` reloads both CSVs into the `teams` and `team_aliases` tables on every run, so the CSV is the source of truth: editing an alias needs no data reload.
+- `matches` is not modified. The view `matches_with_team_ids` adds `home_team_id` and `away_team_id` by joining `matches` with `team_aliases` (NULL when the name has no alias):
+
+```sql
+SELECT date, home_team_id, away_team_id FROM matches_with_team_ids WHERE league = 'SP1';
+```
+
+- `resolve_team(con, source, name)` in `teams.py` returns the `team_id` ignoring case, accents and punctuation, and raises `UnknownTeamError` for unknown names. It is meant for future sources (Understat, The Odds API).
+
+**Adding a team or alias:** add the rows to the CSVs (a new `team_id` goes in `teams.csv` first). The ingestion logs a warning listing any team name without alias, and you can check the whole database with:
+
+```bash
+uv run python -m vba.data.team_check
+```
+
+It prints the unknown names and exits with code 1 if there are any. The tests also check that every team in `tests/fixtures/` has an alias.
+
 ## Column mapping
 
 [`src/vba/data/odds_mapping.py`](../src/vba/data/odds_mapping.py) is the single place that maps CSV odds columns to `(bookmaker, market, selection, is_closing, line)`. Prefixes follow the [football-data notes](https://www.football-data.co.uk/notes.txt) (for example `BW` is Bet&Win, not Betway). To support a new bookmaker or market, add it to the prefix tables in that file.
@@ -74,6 +97,8 @@ When a CSV has columns that look like odds but are not mapped, the load logs a w
 | `parse.py` | CSV reading (UTF-8 with latin-1 fallback) and `matches` records. |
 | `odds_mapping.py` | Column mapping and unmapped-column detection. |
 | `odds_rows.py` | One CSV row into long-format `odds` records. |
-| `db.py` | Connection and schema. |
+| `db.py` | Connection, schema and the team view. |
+| `teams.py` | Team seeds, name normalization and lookup. |
+| `team_check.py` | Lists team names without alias in the database. |
 | `load.py` | Idempotent, transactional load of a season. |
 | `ingest.py` | Entry point that ties everything together. |
