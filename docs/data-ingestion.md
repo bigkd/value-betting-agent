@@ -72,7 +72,7 @@ uv run python -m vba.data.odds_ingest --sport soccer_epl
 ```
 
 - Each run is a *snapshot*: one request per league (`soccer_spain_la_liga`, `soccer_epl`) for markets `h2h` and `totals` in region `eu`. A league whose last snapshot is newer than the TTL is not requested, so a second run within the TTL makes no API call. Scheduling snapshots near kickoff is a separate task (#28).
-- **Cost:** markets x regions credits per league: 2 per league and 4 per run with the defaults. `/events` is free; empty responses are not charged. The run stops if the last known remaining quota is below the cost.
+- **Cost:** markets x regions credits per league: 2 per league and 4 per run with the defaults. `/events` is free; empty responses are not charged. Before the first paid call of a run, the remaining credits are read from `GET /sports` (free, `x-requests-remaining` header), never from the log, so a monthly reset is picked up; the run stops if they are fewer than the cost, even with `--force`.
 - The raw JSON is saved before anything else as `data/raw/odds_api/{sport_key}_{YYYYMMDDTHHMMSSZ}.json` (UTC). The same stem is the `snapshot_id`.
 - The `eu` region includes Pinnacle and Betfair Exchange but no Spanish bookmakers, so the odds actually taken are entered by the user when registering a bet. Other markets (btts, corners, cards) are per-event and have very few bookmakers, so they are not part of the base snapshot.
 - Terms: the Odds API allows storing the data and using it for models, but not redistributing it as a data product. The raw files are git-ignored and `tests/fixtures/odds_api_soccer_la_liga.json` is a response trimmed to 2 events and 4 bookmakers.

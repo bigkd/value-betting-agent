@@ -12,6 +12,7 @@ from vba.data.odds_api_client import (
     api_key,
     credit_cost,
     fetch_odds,
+    fetch_quota,
     http_get,
 )
 
@@ -81,3 +82,10 @@ def test_http_errors_never_leak_the_key(monkeypatch):
     assert "401" in str(error.value)
     assert "secret" not in str(error.value)
     assert error.value.__cause__ is None  # the original error carries the URL
+
+
+def test_fetch_quota_reads_the_free_sports_endpoint():
+    fake = FakeFetch(body=b"[]", headers={"x-requests-remaining": "431"})
+
+    assert fetch_quota(fake) == Quota(last=None, used=None, remaining=431)
+    assert fake.calls == [("/sports", {})]

@@ -25,6 +25,7 @@ from vba.data.odds_api_client import (
     OddsApiError,
     credit_cost,
     fetch_odds,
+    fetch_quota,
     http_get,
 )
 from vba.data.odds_api_load import load_snapshot, resolve_pending_events
@@ -40,13 +41,6 @@ def last_captured_at(con: duckdb.DuckDBPyConnection, sport_key: str) -> datetime
     ).fetchone()[0]
 
 
-def last_credits_remaining(con: duckdb.DuckDBPyConnection) -> int | None:
-    row = con.execute(
-        "SELECT credits_remaining FROM odds_api_requests ORDER BY captured_at DESC LIMIT 1"
-    ).fetchone()
-    return row[0] if row else None
-
-
 def run(
     sport_keys: Sequence[str] = tuple(SPORT_LEAGUES),
     regions: Sequence[str] = DEFAULT_REGIONS,
@@ -60,8 +54,10 @@ def run(
 ) -> int:
     """Snapshot each league whose last snapshot is older than ttl. Returns the API calls made.
 
-    now is naive UTC. force ignores the TTL. An OddsApiError (bad key, no quota, no network)
-    stops the run; snapshots already stored are kept.
+    now is naive UTC. force ignores the TTL but not the quota. The quota is read from the API
+    (free) before the first paid call, never from the log: the log keeps the value of the
+    last call, which is stale once the monthly quota resets. An OddsApiError (bad key, no
+    quota, no network) stops the run; snapshots already stored are kept.
     """
     now = now or datetime.now(UTC).replace(tzinfo=None)
     cost = credit_cost(markets, regions)
@@ -71,13 +67,17 @@ def run(
         resolve_pending_events(con)  # a new alias in the CSV fixes events stored earlier
 
         calls = 0
+        remaining: int | None = None
+        quota_checked = False
         for sport_key in sport_keys:
             last = last_captured_at(con, sport_key)
             if not force and last is not None and now - last < ttl:
                 minutes = int((now - last).total_seconds() // 60)
                 print(f"{sport_key}: last snapshot {minutes} min ago (TTL {ttl}), no API call")
                 continue
-            remaining = last_credits_remaining(con)
+            if not quota_checked:
+                remaining = fetch_quota(fetch).remaining
+                quota_checked = True
             if remaining is not None and remaining < cost:
                 print(f"{sport_key}: needs {cost} credits but only {remaining} left, stopping")
                 break
@@ -88,6 +88,7 @@ def run(
                 con, sport_key, now, payload, quota, raw_path, ",".join(regions), ",".join(markets)
             )
             calls += 1
+            remaining = quota.remaining
             print(
                 f"{sport_key}: {n_events} events, {n_odds} odds rows; cost {quota.last}, "
                 f"{quota.remaining} credits remaining"

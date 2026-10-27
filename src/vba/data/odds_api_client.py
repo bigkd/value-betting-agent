@@ -83,6 +83,11 @@ def http_get(path: str, params: dict[str, str]) -> ApiResponse:
         raise OddsApiError(f"could not reach The Odds API: {error}") from None
 
 
+def fetch_quota(fetch: Fetch = http_get) -> Quota:
+    """Credits left right now. GET /sports is free and carries the x-requests-* headers."""
+    return Quota.from_headers(fetch("/sports", {}).headers)
+
+
 def credit_cost(markets: Sequence[str], regions: Sequence[str]) -> int:
     """Credits one /odds call for one sport costs: markets x regions."""
     return len(markets) * len(regions)
