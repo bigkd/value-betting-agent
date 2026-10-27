@@ -59,6 +59,26 @@ def test_seeds_are_consistent():
     assert n_distinct[0] == n_aliases
 
 
+def test_view_adds_team_ids_and_keeps_unknown_teams():
+    con = connect(":memory:")
+    create_schema(con)
+    for match_id, home, away in [("1", "Ath Madrid", "Man City"), ("2", "Ath Madrid", "Nobody FC")]:
+        con.execute(
+            "INSERT INTO matches (match_id, league, season, date, home_team, away_team) "
+            "VALUES (?, 'SP1', '2425', DATE '2024-08-01', ?, ?)",
+            [match_id, home, away],
+        )
+
+    rows = con.execute(
+        "SELECT match_id, home_team_id, away_team_id FROM matches_with_team_ids ORDER BY match_id"
+    ).fetchall()
+
+    assert rows == [
+        ("1", "atletico_madrid", "manchester_city"),
+        ("2", "atletico_madrid", None),
+    ]
+
+
 def test_reloading_seeds_replaces_edited_rows():
     con = connect(":memory:")
     create_schema(con)

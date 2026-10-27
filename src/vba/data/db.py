@@ -67,6 +67,16 @@ CREATE TABLE IF NOT EXISTS team_aliases (
 )
 """
 
+# matches stays untouched; canonical ids are looked up at query time. LEFT JOIN keeps
+# matches whose team has no alias (ids are NULL) instead of silently dropping them.
+_MATCHES_VIEW_DDL = """
+CREATE OR REPLACE VIEW matches_with_team_ids AS
+SELECT m.*, h.team_id AS home_team_id, a.team_id AS away_team_id
+FROM matches m
+LEFT JOIN team_aliases h ON h.source = 'football-data' AND h.alias = m.home_team
+LEFT JOIN team_aliases a ON a.source = 'football-data' AND a.alias = m.away_team
+"""
+
 
 def connect(path: Path | str = DEFAULT_DB_PATH) -> duckdb.DuckDBPyConnection:
     """Open the database, creating its folder if needed. Use ":memory:" for tests."""
@@ -83,4 +93,5 @@ def create_schema(con: duckdb.DuckDBPyConnection) -> None:
     con.execute(_ODDS_DDL)
     con.execute(_TEAMS_DDL)
     con.execute(_TEAM_ALIASES_DDL)
+    con.execute(_MATCHES_VIEW_DDL)
     load_seeds(con)
